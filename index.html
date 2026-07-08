@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gastos do Casamento</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="identity">
+          <div class="brand-mark" aria-hidden="true">GC</div>
+          <div>
+            <p class="eyebrow">controle financeiro</p>
+            <h1>Gastos do casamento</h1>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button class="ghost-button" id="resetData" type="button">
+            <span aria-hidden="true">&#8634;</span>
+            Limpar dados
+          </button>
+          <button class="ghost-button" id="exportCsv" type="button">
+            <span aria-hidden="true">&#8681;</span>
+            Exportar CSV
+          </button>
+          <button class="primary-button" id="addExpense" type="button">
+            <span aria-hidden="true">+</span>
+            Novo gasto
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="auth-panel" id="authPanel" aria-label="Acesso Supabase">
+          <div class="auth-copy">
+            <p class="eyebrow">supabase</p>
+            <h2 id="authTitle">Entrar para sincronizar</h2>
+            <span id="authStatus">Modo local</span>
+          </div>
+          <form class="auth-form" id="authForm">
+            <input id="authEmail" type="email" placeholder="E-mail" autocomplete="email" required />
+            <input id="authPassword" type="password" placeholder="Senha" autocomplete="current-password" minlength="6" required />
+            <button class="primary-button" id="signInButton" type="submit">Entrar</button>
+            <button class="ghost-button" id="signUpButton" type="button">Criar acesso</button>
+          </form>
+          <button class="ghost-button" id="signOutButton" type="button" hidden>Sair</button>
+        </section>
+
+        <section class="summary-grid" aria-label="Resumo financeiro">
+          <article class="metric-card">
+            <p>Total previsto</p>
+            <strong id="totalBudget">R$ 0,00</strong>
+            <span id="itemCount">0 itens</span>
+          </article>
+          <article class="metric-card">
+            <p>Total pago</p>
+            <strong id="totalPaid">R$ 0,00</strong>
+            <span id="paidCount">0 quitados</span>
+          </article>
+          <article class="metric-card">
+            <p>A pagar</p>
+            <strong id="totalRemaining">R$ 0,00</strong>
+            <span id="pendingCount">0 pendentes</span>
+          </article>
+          <article class="metric-card progress-card">
+            <p>Progresso</p>
+            <strong id="paidPercent">0%</strong>
+            <div class="progress-track" aria-hidden="true">
+              <span id="overallProgress"></span>
+            </div>
+          </article>
+        </section>
+
+        <section class="visual-band" aria-label="Vis&atilde;o geral">
+          <div class="canvas-panel">
+            <canvas id="paymentChart" width="240" height="240" aria-label="Distribui&ccedil;&atilde;o entre pago e a pagar"></canvas>
+            <div class="chart-legend">
+              <span><i class="legend-paid"></i> Pago</span>
+              <span><i class="legend-open"></i> A pagar</span>
+            </div>
+          </div>
+          <div class="insight-strip" id="insightStrip"></div>
+        </section>
+
+        <section class="workspace">
+          <section class="main-panel" aria-labelledby="expensesTitle">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">lan&ccedil;amentos</p>
+                <h2 id="expensesTitle">Todos os gastos</h2>
+              </div>
+              <span class="save-state" id="saveState">Salvo localmente</span>
+            </div>
+
+            <div class="filters">
+              <label class="search-box">
+                <span aria-hidden="true">&#8981;</span>
+                <input id="searchInput" type="search" placeholder="Buscar item, categoria ou observa&ccedil;&atilde;o" autocomplete="off" />
+              </label>
+              <select id="categoryFilter" aria-label="Categoria"></select>
+              <div class="status-tabs" aria-label="Status">
+                <button class="active" type="button" data-status="all">Todos</button>
+                <button type="button" data-status="Pago">Pago</button>
+                <button type="button" data-status="Parcial">Parcial</button>
+                <button type="button" data-status="A pagar">A pagar</button>
+              </div>
+              <select id="sortSelect" aria-label="Ordena&ccedil;&atilde;o">
+                <option value="remainingDesc">Maior pend&ecirc;ncia</option>
+                <option value="totalDesc">Maior valor</option>
+                <option value="categoryAsc">Categoria</option>
+                <option value="nameAsc">Item</option>
+                <option value="paidPercentDesc">% pago</option>
+              </select>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <colgroup>
+                  <col class="col-item" />
+                  <col class="col-category" />
+                  <col class="col-money" />
+                  <col class="col-money" />
+                  <col class="col-money" />
+                  <col class="col-status" />
+                  <col class="col-due" />
+                  <col class="col-actions" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Categoria</th>
+                    <th>Total</th>
+                    <th>Pago</th>
+                    <th>Restante</th>
+                    <th>Status</th>
+                    <th>Prazo</th>
+                    <th>A&ccedil;&otilde;es</th>
+                  </tr>
+                </thead>
+                <tbody id="expensesBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="emptyState" hidden>Nenhum lan&ccedil;amento encontrado.</div>
+          </section>
+
+          <aside class="side-panel">
+            <section class="category-panel" aria-labelledby="categoryTitle">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">categorias</p>
+                  <h2 id="categoryTitle">Resumo</h2>
+                </div>
+              </div>
+              <div class="category-list" id="categoryList"></div>
+            </section>
+
+            <section class="pending-panel" aria-labelledby="pendingTitle">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">prioridades</p>
+                  <h2 id="pendingTitle">Maiores saldos</h2>
+                </div>
+              </div>
+              <div class="pending-list" id="pendingList"></div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="expenseDialog">
+      <form id="expenseForm" class="expense-form">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">lan&ccedil;amento</p>
+            <h2 id="dialogTitle">Novo gasto</h2>
+          </div>
+          <button class="icon-only" id="closeDialog" type="button" aria-label="Fechar">&times;</button>
+        </div>
+
+        <input id="expenseId" type="hidden" />
+        <div class="form-grid">
+          <label>
+            Categoria
+            <input id="categoryInput" list="categoryOptions" required />
+            <datalist id="categoryOptions"></datalist>
+          </label>
+          <label>
+            Item
+            <input id="itemInput" required />
+          </label>
+          <label>
+            Valor total
+            <input id="totalInput" type="number" min="0" step="0.01" required />
+          </label>
+          <label>
+            Pago
+            <input id="paidInput" type="number" min="0" step="0.01" required />
+          </label>
+          <label class="full">
+            Vencimento/Prazo
+            <input id="dueInput" />
+          </label>
+          <label class="full">
+            Observa&ccedil;&otilde;es
+            <textarea id="notesInput" rows="3"></textarea>
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="ghost-button" id="cancelDialog" type="button">Cancelar</button>
+          <button class="primary-button" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
